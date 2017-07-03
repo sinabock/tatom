@@ -65,9 +65,9 @@ download and extract MALLET:
 
 .. code-block:: bash
 
-    # alternatively: wget http://mallet.cs.umass.edu/dist/mallet-2.0.7.tar.gz
-    curl --remote-name http://mallet.cs.umass.edu/dist/mallet-2.0.7.tar.gz
-    tar zxf mallet-2.0.7.tar.gz
+    # alternatively: wget http://mallet.cs.umass.edu/dist/mallet-2.0.8.tar.gz
+    curl --remote-name http://mallet.cs.umass.edu/dist/mallet-2.0.8.tar.gz
+    tar zxf mallet-2.0.8.tar.gz
 
 We will run MALLET using the default parameters. Using the option
 ``--random-seed 1`` should guarantee that the results produced match those
@@ -75,8 +75,8 @@ appearing below.
 
 .. code-block:: bash
 
-    mallet-2.0.7/bin/mallet import-dir --input data/austen-brontë-split/ --output /tmp/topic-input-austen-brontë.mallet --keep-sequence --remove-stopwords
-    mallet-2.0.7/bin/mallet train-topics --input /tmp/topic-input-austen-brontë.mallet --num-topics 20 --output-doc-topics /tmp/doc-topics-austen-brontë.txt --output-topic-keys /tmp/topic-keys-austen-brontë.txt --random-seed 1
+    mallet-2.0.8/bin/mallet import-dir --input data/austen-brontë-split/ --output /tmp/topic-input-austen-brontë.mallet --keep-sequence --remove-stopwords
+    mallet-2.0.8/bin/mallet train-topics --input /tmp/topic-input-austen-brontë.mallet --num-topics 20 --output-doc-topics /tmp/doc-topics-austen-brontë.txt --output-topic-keys /tmp/topic-keys-austen-brontë.txt --random-seed 1
 
 Under Windows the commands are similar. For detailed instructions see the
 article `"Getting Started with Topic Modeling and MALLET"
