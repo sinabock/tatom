@@ -97,10 +97,9 @@ matrix.
    *mixture weights*, or *component weights*. Different communities favor
    different terms.
 
-Manipulating the output of MALLET into a document-topic matrix is not
+Since Mallet version 2.0.8 manipulating the output of MALLET into a document-topic matrix is
 entirely intuitive. Fortunately the tools required for the job are available in
-Python and the procedure is similar to that reviewed in the previous section on
-:ref:`grouping texts <grouping-texts>`.
+the Python pandas package <https://pandas.pydata.org/pandas-docs/stable/index.html>.
 
 MALLET delivers the topic shares for each document into a file specified by the
 ``--output-doc-topics`` option. In this case we have provided the output
@@ -108,28 +107,17 @@ filename ``/tmp/doc-topics-austen-brontë.txt``. The first lines of this file
 should look something like this:
 
 ::
-
-   #doc name topic proportion ...
-   0	file:/.../austen-brontë-split/Austen_Pride0103.txt	3	0.2110215053763441	14	0.13306451612903225
-   1	file:/.../austen-brontë-split/Austen_Pride0068.txt	17	0.19915254237288135	3	0.14548022598870056
+ 
+   0	file:/.../austen-brontë-split/CBronte_Villette0085.txt	0.05338266384778013	0.002642706131078224	0.013213530655391121	0.006871035940803382	
+   1	file:/.../austen-brontë-split/CBronte_Jane0165.txt	0.03429878048780488	0.019054878048780487	7.621951219512195E-4	0.006859756097560976
    ...
 
-The first two columns of ``doc-topics.txt`` record the document number
-(0-based indexing) and the full path to the filename. The rest of the columns are best
-considered as (topic-number, topic-share) pairs. There are as many of these
-pairs as there are topics. All columns are separated by tabs (there's even
-a trailing tab at the end of the line). With the exception of the header (the
-first line), this file records data using `tab-separated values
-<https://en.wikipedia.org/wiki/Tab-separated_values>`_. There are two challenges
-in parsing this file into a document-topic matrix. The first is sorting.
-The texts do not appear in a consistent order in ``doc-topics.txt`` and the
-topic number and share pairs appear in different columns depending on the
-document. We will need to reorder these pairs before assembling them into
-a matrix.[#fnmapreduce]_ The second challenge is that the number of columns will
-vary with the number of topics specified (``--num-topics``). Fortunately, the
-documentation in the Python library `itertools
-<http://docs.python.org/dev/library/itertools.html>`_ describes a function
-called ``grouper`` using ``itertools.izip_longest`` that solves our problem.
+The first two columns of ``doc-topics.txt`` record the document number (0-based indexing) and the full path to the filename. The rest of the columns contain the topic-shares. The topic shares do appear in a consistent order so that the column number (0-based indexing) is equvivalent to the corresponding topic number (``--num-topics``). 
+All columns are separated by tabs (there's even a trailing tab at the end of the line). This file records data using `tab-separated values
+<https://en.wikipedia.org/wiki/Tab-separated_values>`. 
+
+To parse this file into a document-topic matrix [#fnmapreduce] we simply can use the ``reader``-function of the csv-module <https://docs.python.org/3/library/csv.html>.
+
 
 .. ipython:: python
     :suppress:
@@ -143,7 +131,7 @@ called ``grouper`` using ``itertools.izip_longest`` that solves our problem.
     MALLET_TOPICS = 'source/cache/doc-topic-austen-brontë-{}topics.txt'.format(N_TOPICS)
     MALLET_KEYS = 'source/cache/doc-topic-austen-brontë-{}topics-keys.txt'.format(N_TOPICS)
     if not os.path.exists(MALLET_INPUT):
-        subprocess.check_call('mallet-2.0.7/bin/mallet import-dir --input data/austen-brontë-split/ --output {} --keep-sequence --remove-stopwords'.format(MALLET_INPUT), shell=True)
+        subprocess.check_call('mallet-2.0.8/bin/mallet import-dir --input data/austen-brontë-split/ --output {} --keep-sequence --remove-stopwords'.format(MALLET_INPUT), shell=True)
 
 .. ipython:: python
     :suppress:
@@ -153,45 +141,26 @@ called ``grouper`` using ``itertools.izip_longest`` that solves our problem.
     shutil.copy(MALLET_INPUT,'/tmp/topic-input-austen-brontë.mallet')
 
     if not os.path.exists(MALLET_TOPICS):
-        subprocess.check_call('mallet-2.0.7/bin/mallet train-topics --input /tmp/topic-input-austen-brontë.mallet --num-topics {} --output-doc-topics {} --output-topic-keys {} --random-seed 1'.format(N_TOPICS, MALLET_TOPICS, MALLET_KEYS), shell=True)
+        subprocess.check_call('mallet-2.0.8/bin/mallet train-topics --input /tmp/topic-input-austen-brontë.mallet --num-topics {} --output-doc-topics {} --output-topic-keys {} --random-seed 1'.format(N_TOPICS, MALLET_TOPICS, MALLET_KEYS), shell=True)
     shutil.copy(MALLET_TOPICS,'/tmp/doc-topics-austen-brontë.txt')
     shutil.copy(MALLET_KEYS,'/tmp/topic-keys-austen-brontë.txt')
 
 
 .. ipython:: python
 
-    import numpy as np
-    import itertools
-    import operator
-    import os
+   	import csv
 
-    def grouper(n, iterable, fillvalue=None):
-        "Collect data into fixed-length chunks or blocks"
-        # grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
-        args = [iter(iterable)] * n
-        return itertools.zip_longest(*args, fillvalue=fillvalue)
+	mallet_docnames = []
+	doctopic_triples = []
 
-    doctopic_triples = []
-    mallet_docnames = []
-
-    with open("/tmp/doc-topics-austen-brontë.txt") as f:
-        f.readline()  # read one line in order to skip the header
-        for line in f:
-            # ``docnum, docname, *values`` performs "tuple unpacking", useful Python feature
-            # ``.rstrip()`` removes the superfluous trailing tab
-            docnum, docname, *values = line.rstrip().split('\t')
-            mallet_docnames.append(docname)
-            for topic, share in grouper(2, values):
-                triple = (docname, int(topic), float(share))
-                doctopic_triples.append(triple)
-
-    # sort the triples
-    # triple is (docname, topicnum, share) so sort(key=operator.itemgetter(0,1))
-    # sorts on (docname, topicnum) which is what we want
-    doctopic_triples = sorted(doctopic_triples, key=operator.itemgetter(0,1))
-
-    # sort the document names rather than relying on MALLET's ordering
-    mallet_docnames = sorted(mallet_docnames)
+	with open("/tmp/doc-topics-austen-brontë.txt") as f:
+    reader = csv.reader(f, delimiter='\t')
+    for line in reader:
+        docnum, docname, *values = line
+        mallet_docnames.append(docname)
+        for topic_num, share in enumerate(values):
+            triple = (docname, int(topic_num), float(share))
+            doctopic_triples.append(triple)
 
     # collect into a document-term matrix
     num_docs = len(mallet_docnames)
